@@ -112,7 +112,7 @@ export default function SignatureSpotlight() {
         {[0, 1, 2].map((item) => (
           <span
             key={item}
-            className="mr-[0.24em] text-[clamp(5.5rem,9vw,10rem)] font-black leading-none tracking-[-0.055em] text-transparent"
+            className="mr-[0.24em] text-[clamp(2.25rem,9vw,10rem)] font-black leading-none tracking-[-0.055em] text-transparent"
             style={{
               WebkitTextStroke: `1.6px ${foreground}9c`,
             }}

@@ -45,23 +45,26 @@ function StageItem({
           className="pointer-events-none absolute inset-x-0 top-0 bottom-4 z-0"
         >
           <div
-            className="absolute left-1/2 top-0 h-72 w-32 -translate-x-1/2 blur-sm"
+            className="absolute left-1/2 top-0 h-[55%] w-32 -translate-x-1/2 blur-sm"
             style={{
               background:
                 "linear-gradient(to bottom, rgba(203,160,90,0.4), rgba(203,160,90,0) 85%)",
               clipPath: "polygon(42% 0%, 58% 0%, 100% 100%, 0% 100%)",
             }}
           />
-          <div
-            className="absolute bottom-0 left-1/2 h-20 w-44 -translate-x-1/2 rounded-full blur-md"
-            style={{
-              background:
-                "radial-gradient(ellipse at center, rgba(203,160,90,0.5), transparent 70%)",
-            }}
-          />
         </motion.div>
       )}
 
+      {/*
+        The pen's rendered height is governed by .flavor-picker__pen in
+        globals.css within its tuned breakpoints (overriding the h-full
+        Tailwind class via cascade order), independent of how tall this
+        wrapper actually is. Bottom-aligning the flex column here — and
+        keeping the ground-glow as a normal sibling right after the pen,
+        instead of absolutely positioned off the outer button box — keeps
+        the glow visually attached to the pen's base regardless of which
+        height rule ends up winning.
+      */}
       <motion.div
         animate={{
           scale: isSelected ? 1 : 0.66,
@@ -72,7 +75,7 @@ function StageItem({
         }}
         transition={spring}
         style={{ transformOrigin: "bottom center" }}
-        className="relative z-10 h-full min-h-0 py-6"
+        className="relative z-10 flex h-full min-h-0 flex-col items-center justify-end py-6"
       >
         <VapePen
           color={flavor.penColor}
@@ -80,6 +83,16 @@ function StageItem({
           name={flavor.name}
           className="flavor-picker__pen h-full w-auto"
         />
+        {isSelected && (
+          <div
+            aria-hidden
+            className="-mt-3 h-8 w-32 shrink-0 rounded-full blur-md"
+            style={{
+              background:
+                "radial-gradient(ellipse at center, rgba(203,160,90,0.55), transparent 72%)",
+            }}
+          />
+        )}
       </motion.div>
     </button>
   );
@@ -272,7 +285,7 @@ export default function FlavorPicker() {
           </div>
         </Reveal>
 
-        <div className="flavor-picker__stage relative mt-1 flex h-[280px] shrink-0 items-center sm:h-[320px] md:h-[clamp(16rem,36vh,22rem)]">
+        <div className="flavor-picker__stage relative mt-1 flex h-[280px] shrink-0 items-center sm:h-[320px] md:h-auto md:min-h-0 md:flex-1">
           <div
             ref={trackRef}
             onScroll={handleTrackScroll}
