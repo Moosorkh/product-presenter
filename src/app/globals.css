@@ -1,26 +1,373 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #151617;
+  --foreground: #f3ede1;
+
+  --color-ink: #151617;
+  --color-ink-deep: #090a0b;
+  --color-gold: #cba05a;
+  --color-gold-dark: #a67f3f;
+  --color-plum: #7a3a52;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-ink: var(--color-ink);
+  --color-ink-deep: var(--color-ink-deep);
+  --color-gold: var(--color-gold);
+  --color-gold-dark: var(--color-gold-dark);
+  --color-plum: var(--color-plum);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-18px) rotate(2deg);
+  }
+}
+
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.product-smoke {
+  z-index: 1;
+  isolation: isolate;
+  background:
+    linear-gradient(90deg, rgba(245, 240, 229, 0.46), transparent 28%),
+    radial-gradient(circle at 48% 46%, rgba(255, 255, 255, 0.72), transparent 44%);
+}
+
+.product-smoke__cloud,
+.product-smoke__haze {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.product-smoke__cloud {
+  width: 72%;
+  height: 74%;
+  border-radius: 46% 54% 58% 42% / 58% 42% 56% 44%;
+  filter: blur(22px);
+  opacity: 0.28;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.product-smoke__cloud::before,
+.product-smoke__cloud::after {
+  position: absolute;
+  content: "";
+  border-radius: 999px;
+  filter: blur(18px);
+}
+
+.product-smoke__cloud::before {
+  inset: 9% 4% 24% 13%;
+  background:
+    radial-gradient(circle at 18% 68%, color-mix(in srgb, var(--smoke-primary) 72%, white) 0 15%, transparent 43%),
+    radial-gradient(circle at 42% 45%, color-mix(in srgb, var(--smoke-primary) 58%, white) 0 24%, transparent 56%),
+    radial-gradient(circle at 73% 38%, color-mix(in srgb, var(--smoke-secondary) 52%, white) 0 22%, transparent 52%);
+}
+
+.product-smoke__cloud::after {
+  inset: 28% 8% 2% 21%;
+  background:
+    radial-gradient(circle at 24% 40%, color-mix(in srgb, var(--smoke-secondary) 62%, white) 0 18%, transparent 49%),
+    radial-gradient(circle at 56% 58%, color-mix(in srgb, var(--smoke-primary) 68%, white) 0 27%, transparent 58%),
+    radial-gradient(circle at 86% 28%, color-mix(in srgb, var(--smoke-secondary) 48%, white) 0 17%, transparent 46%);
+}
+
+.product-smoke__cloud--one {
+  left: -8%;
+  top: -15%;
+  background: color-mix(in srgb, var(--smoke-primary) 42%, transparent);
+  animation: product-smoke-drift-one 15s ease-in-out infinite alternate;
+}
+
+.product-smoke__cloud--two {
+  right: -15%;
+  top: 3%;
+  background: color-mix(in srgb, var(--smoke-secondary) 38%, transparent);
+  animation: product-smoke-drift-two 18s ease-in-out -6s infinite alternate;
+}
+
+.product-smoke__haze {
+  inset: 0;
+  background:
+    linear-gradient(105deg, transparent 7%, color-mix(in srgb, var(--smoke-primary) 18%, transparent) 42%, transparent 70%),
+    radial-gradient(ellipse at 68% 38%, color-mix(in srgb, var(--smoke-secondary) 22%, transparent), transparent 48%);
+  opacity: 0.48;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  animation: product-smoke-haze 12s ease-in-out infinite alternate;
+}
+
+@keyframes product-smoke-drift-one {
+  0% {
+    transform: translate3d(-5%, 10%, 0) scale(0.92) rotate(-5deg);
+  }
+  50% {
+    transform: translate3d(10%, -1%, 0) scale(1.14) rotate(3deg);
+  }
+  100% {
+    transform: translate3d(21%, 9%, 0) scale(1.02) rotate(8deg);
+  }
+}
+
+@keyframes product-smoke-drift-two {
+  0% {
+    transform: translate3d(8%, -6%, 0) scale(0.9) rotate(7deg);
+  }
+  55% {
+    transform: translate3d(-12%, 8%, 0) scale(1.18) rotate(-3deg);
+  }
+  100% {
+    transform: translate3d(-25%, -2%, 0) scale(1.04) rotate(-9deg);
+  }
+}
+
+@keyframes product-smoke-haze {
+  from {
+    transform: translate3d(-7%, 0, 0) scale(1.08);
+    opacity: 0.42;
+  }
+  to {
+    transform: translate3d(7%, -2%, 0) scale(1.18);
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-smoke__cloud,
+  .product-smoke__haze {
+    animation: none;
+  }
+}
+
+@media (min-width: 768px) and (max-height: 950px) {
+  .flavor-picker {
+    padding-top: 0.85rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .flavor-picker__eyebrow {
+    font-size: 0.875rem;
+  }
+
+  .flavor-picker__rule {
+    margin-top: 0.35rem;
+    height: 0.3rem;
+  }
+
+  .flavor-picker__intro h2 {
+    margin-top: 0.3rem;
+    font-size: clamp(2.35rem, 5.7vh, 3.1rem);
+    line-height: 1.02;
+  }
+
+  .flavor-picker__deck {
+    margin-top: 0.55rem;
+    font-size: 0.95rem;
+    line-height: 1.35;
+  }
+
+  .flavor-picker__actions {
+    margin-top: 0.7rem;
+    gap: 0.65rem;
+  }
+
+  .flavor-picker__cta {
+    padding: 0.65rem 1.45rem;
+    font-size: 0.875rem;
+  }
+
+  .flavor-picker__stage {
+    margin-top: 0;
+    padding-bottom: 0.65rem;
+  }
+
+  .flavor-picker__item {
+    padding-top: 1rem;
+    padding-bottom: 0.65rem;
+  }
+
+  .flavor-picker__pen {
+    height: clamp(12.75rem, 31vh, 17rem);
+  }
+
+  .flavor-picker__details {
+    padding-top: 0.35rem;
+    padding-bottom: 1.6rem;
+  }
+
+  .flavor-picker__details p:first-child {
+    font-size: 1.2rem;
+    line-height: 1.2;
+  }
+
+  .flavor-picker__details p:last-child {
+    margin-top: 0.35rem;
+    font-size: 0.95rem;
+  }
+
+  .flavor-picker__progress {
+    bottom: 0.45rem;
+  }
+}
+
+@media (min-width: 768px) and (max-height: 780px) {
+  .flavor-picker {
+    padding-top: 0.65rem;
+    padding-bottom: 0.35rem;
+  }
+
+  .flavor-picker__intro h2 {
+    font-size: clamp(2.1rem, 5.2vh, 2.65rem);
+  }
+
+  .flavor-picker__deck {
+    margin-top: 0.4rem;
+    font-size: 0.875rem;
+  }
+
+  .flavor-picker__actions {
+    margin-top: 0.55rem;
+  }
+
+  .flavor-picker__cta {
+    padding: 0.55rem 1.25rem;
+    font-size: 0.8rem;
+  }
+
+  .flavor-picker__stage {
+    padding-top: 0.4rem;
+    padding-bottom: 0.8rem;
+  }
+
+  .flavor-picker__item {
+    padding-top: 0.65rem;
+  }
+
+  .flavor-picker__pen {
+    height: clamp(11rem, 27vh, 14rem);
+  }
+
+  .flavor-picker__details {
+    padding-top: 0.5rem;
+    padding-bottom: 1.45rem;
+  }
+
+  .flavor-picker__progress {
+    bottom: 0.35rem;
+  }
+}
+
+@media (max-width: 767px) and (orientation: landscape) and (max-height: 520px) {
+  .mobile-hero {
+    display: flex;
+    min-height: calc(100svh - 64px);
+    align-items: center;
+    padding: 1.25rem 2rem 1rem;
+  }
+
+  .mobile-hero__content {
+    display: grid;
+    width: min(100%, 720px);
+    max-width: 720px;
+    grid-template-columns: minmax(0, 1.25fr) minmax(150px, 0.75fr);
+    grid-template-rows: auto auto;
+    column-gap: 2rem;
+    align-items: center;
+    text-align: left;
+  }
+
+  .mobile-hero__copy {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .mobile-hero__copy h1 {
+    margin-top: 0.55rem;
+    font-size: clamp(2.35rem, 7.5vw, 3.25rem);
+  }
+
+  .mobile-hero__copy p:last-child {
+    margin-top: 0.75rem;
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  .mobile-hero__product {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    margin-top: 0;
+  }
+
+  .mobile-hero__pen {
+    height: min(72svh, 300px);
+  }
+
+  .mobile-hero__mark {
+    grid-column: 1;
+    grid-row: 2;
+    margin-top: 0.8rem;
+  }
+
+  .mobile-hero__mark img {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 479px) and (orientation: portrait) and (max-height: 650px) {
+  .mobile-hero {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+
+  .mobile-hero__copy h1 {
+    margin-top: 0.65rem;
+    font-size: 2.35rem;
+  }
+
+  .mobile-hero__copy p:last-child {
+    margin-top: 0.8rem;
+    font-size: 0.86rem;
+    line-height: 1.48;
+  }
+
+  .mobile-hero__product {
+    margin-top: 1.1rem;
+  }
+
+  .mobile-hero__pen {
+    height: 270px;
+  }
+
+  .mobile-hero__mark {
+    margin-top: 0.9rem;
+  }
 }
