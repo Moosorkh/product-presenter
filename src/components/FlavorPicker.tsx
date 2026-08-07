@@ -118,7 +118,7 @@ export default function FlavorPicker() {
     () => {
       const mm = gsap.matchMedia();
 
-      mm.add("(min-width: 768px) and (min-height: 720px)", () => {
+      mm.add("(min-width: 768px) and (min-height: 560px)", () => {
         const syncSelectedFlavor = (progress: number) => {
           const idx = Math.min(
             flavors.length - 1,
