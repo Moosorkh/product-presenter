@@ -35,7 +35,7 @@ function StageItem({
       onClick={onSelect}
       aria-label={flavor.name}
       aria-pressed={isSelected}
-      className="flavor-picker__item pointer-events-none relative flex shrink-0 flex-col items-center px-2 pb-2 pt-14 outline-none md:pointer-events-auto"
+      className="flavor-picker__item pointer-events-none relative flex h-full shrink-0 flex-col items-center px-2 pb-2 pt-14 outline-none md:pointer-events-auto"
       style={{ scrollSnapAlign: "center" }}
     >
       {isSelected && (
@@ -72,13 +72,13 @@ function StageItem({
         }}
         transition={spring}
         style={{ transformOrigin: "bottom center" }}
-        className="relative z-10"
+        className="relative z-10 h-full min-h-0 py-6"
       >
-      <VapePen
+        <VapePen
           color={flavor.penColor}
           accent={flavor.boxAccent}
           name={flavor.name}
-          className="flavor-picker__pen h-64 w-auto sm:h-72 md:h-80 lg:h-[clamp(20rem,45vh,27rem)]"
+          className="flavor-picker__pen h-full w-auto"
         />
       </motion.div>
     </button>
@@ -272,7 +272,7 @@ export default function FlavorPicker() {
           </div>
         </Reveal>
 
-        <div className="flavor-picker__stage relative mt-1 flex min-h-[300px] flex-1 items-center md:min-h-0">
+        <div className="flavor-picker__stage relative mt-1 flex h-[280px] shrink-0 items-center sm:h-[320px] md:h-[clamp(16rem,36vh,22rem)]">
           <div
             ref={trackRef}
             onScroll={handleTrackScroll}
