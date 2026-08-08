@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import gsap from "gsap";
+import { Draggable } from "gsap/Draggable";
+import { InertiaPlugin } from "gsap/InertiaPlugin";
+import { useGSAP } from "@gsap/react";
 import Reveal from "./Reveal";
 import MagneticButton from "./MagneticButton";
+
+gsap.registerPlugin(Draggable, InertiaPlugin, useGSAP);
 
 const products = [
   {
@@ -59,6 +64,10 @@ const products = [
   },
 ];
 
+// Three copies of the deck sit side by side so a free drag never runs out of
+// cards — onDrag/onThrowUpdate silently jumps the track back by one deck
+// width whenever it strays into the first or third copy, so the loop reads
+// as endless while a real DOM element always exists under the cursor.
 const loopedProducts = [...products, ...products, ...products];
 
 function modulo(value: number, length: number) {
@@ -66,106 +75,153 @@ function modulo(value: number, length: number) {
 }
 
 export default function PrerollsShowcase() {
+  const sectionRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const virtualIndexRef = useRef(products.length);
-  const isDesktopRef = useRef(false);
+  const draggableRef = useRef<Draggable | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isReady, setIsReady] = useState(false);
 
-  const centerCard = (index: number, immediate = false) => {
-    const viewport = viewportRef.current;
-    const track = trackRef.current;
-    const card = cardRefs.current[index];
-    if (!viewport || !track || !card) return;
+  useGSAP(
+    () => {
+      const viewport = viewportRef.current;
+      const track = trackRef.current;
+      if (!viewport || !track) return;
 
-    const left = card.offsetLeft - (viewport.clientWidth - card.clientWidth) / 2;
+      const getSetWidth = () => track.scrollWidth / 3;
+
+      // Only safe to reposition the track when no tween owns its "x" right
+      // now — nudging it mid-throw fights InertiaPlugin's own trajectory
+      // and the two corrections compound into a runaway drift.
+      const wrapAtRest = () => {
+        const setWidth = getSetWidth();
+        const x = gsap.getProperty(track, "x") as number;
+        if (x > 0 || x < -setWidth * 2) {
+          gsap.set(track, { x: gsap.utils.wrap(-setWidth * 2, 0, x) });
+          draggableRef.current?.update();
+        }
+      };
+
+      const applyBounds = () => {
+        const setWidth = getSetWidth();
+        draggableRef.current?.applyBounds({
+          minX: -setWidth * 2.5,
+          maxX: setWidth * 0.5,
+        });
+      };
+
+      const syncActiveIndex = () => {
+        const viewportCenter =
+          viewport.getBoundingClientRect().left + viewport.clientWidth / 2;
+        let nearestIndex = 0;
+        let nearestDistance = Number.POSITIVE_INFINITY;
+        cardRefs.current.forEach((card, index) => {
+          if (!card) return;
+          const rect = card.getBoundingClientRect();
+          const distance = Math.abs(rect.left + rect.width / 2 - viewportCenter);
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestIndex = index;
+          }
+        });
+        setActiveIndex(modulo(nearestIndex, products.length));
+      };
+
+      const place = () => {
+        gsap.set(track, { x: -getSetWidth() });
+        syncActiveIndex();
+        setIsReady(true);
+      };
+
+      const frame = requestAnimationFrame(() => {
+        place();
+        applyBounds();
+      });
+      const resizeObserver = new ResizeObserver(() => {
+        const setWidth = getSetWidth();
+        const x = gsap.getProperty(track, "x") as number;
+        // Re-anchor to the middle deck on resize without disturbing which
+        // card is currently centered.
+        gsap.set(track, { x: gsap.utils.clamp(-setWidth * 2, 0, x) });
+        applyBounds();
+      });
+      resizeObserver.observe(viewport);
+
+      const [draggable] = Draggable.create(track, {
+        type: "x",
+        inertia: true,
+        allowNativeTouchScrolling: "y" as unknown as boolean,
+        dragClickables: true,
+        onPress() {
+          gsap.killTweensOf(track);
+        },
+        onThrowComplete() {
+          wrapAtRest();
+          syncActiveIndex();
+        },
+        onDragEnd() {
+          if (!this.tween) {
+            wrapAtRest();
+            syncActiveIndex();
+          }
+        },
+      });
+      draggableRef.current = draggable;
+
+      return () => {
+        cancelAnimationFrame(frame);
+        resizeObserver.disconnect();
+        draggable.kill();
+      };
+    },
+    { scope: sectionRef }
+  );
+
+  function nudge(direction: 1 | -1) {
+    const track = trackRef.current;
+    if (!track) return;
     gsap.killTweensOf(track);
 
-    if (isDesktopRef.current) {
-      if (immediate) {
-        gsap.set(track, { x: -left, force3D: true });
-        return;
-      }
-
-      gsap.to(track, {
-        x: -left,
-        duration: 0.62,
-        ease: "power4.out",
-        force3D: true,
-        overwrite: "auto",
-      });
-      return;
-    }
-
-    gsap.set(track, { x: 0 });
-    if (immediate) {
-      track.scrollLeft = left;
-      return;
-    }
+    const cardWidth = cardRefs.current[0]?.offsetWidth ?? 0;
+    const gap = parseFloat(getComputedStyle(track).columnGap || "0");
+    const x = (gsap.getProperty(track, "x") as number) - direction * (cardWidth + gap);
 
     gsap.to(track, {
-      scrollLeft: left,
-      duration: 0.72,
-      ease: "power3.inOut",
-      overwrite: true,
+      x,
+      duration: 0.6,
+      ease: "power3.out",
+      onComplete: () => {
+        const setWidth = track.scrollWidth / 3;
+        const current = gsap.getProperty(track, "x") as number;
+        if (current > 0 || current < -setWidth * 2) {
+          gsap.set(track, { x: gsap.utils.wrap(-setWidth * 2, 0, current) });
+        }
+        draggableRef.current?.update();
+        const viewport = viewportRef.current;
+        if (!viewport) return;
+        const viewportCenter =
+          viewport.getBoundingClientRect().left + viewport.clientWidth / 2;
+        let nearestIndex = 0;
+        let nearestDistance = Number.POSITIVE_INFINITY;
+        cardRefs.current.forEach((card, index) => {
+          if (!card) return;
+          const rect = card.getBoundingClientRect();
+          const distance = Math.abs(rect.left + rect.width / 2 - viewportCenter);
+          if (distance < nearestDistance) {
+            nearestDistance = distance;
+            nearestIndex = index;
+          }
+        });
+        setActiveIndex(modulo(nearestIndex, products.length));
+      },
     });
-  };
-
-  useEffect(() => {
-    const viewport = viewportRef.current;
-    const track = trackRef.current;
-    if (!viewport || !track) return;
-
-    const media = window.matchMedia("(min-width: 768px)");
-    const placeInMiddle = () => {
-      isDesktopRef.current = media.matches;
-      centerCard(products.length, true);
-      setIsReady(true);
-    };
-    const handleBreakpointChange = () => {
-      isDesktopRef.current = media.matches;
-      gsap.set(track, { clearProps: "transform" });
-      centerCard(virtualIndexRef.current, true);
-    };
-    const frame = requestAnimationFrame(placeInMiddle);
-    const observer = new ResizeObserver(() =>
-      centerCard(virtualIndexRef.current, true)
-    );
-    observer.observe(viewport);
-    media.addEventListener("change", handleBreakpointChange);
-
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
-      media.removeEventListener("change", handleBreakpointChange);
-      gsap.killTweensOf(track);
-      if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-    };
-  }, []);
-
-  const move = (step: number) => {
-    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
-
-    const nextIndex = virtualIndexRef.current + step;
-    virtualIndexRef.current = nextIndex;
-    setActiveIndex(modulo(nextIndex, products.length));
-    centerCard(nextIndex);
-
-    resetTimerRef.current = setTimeout(() => {
-      if (nextIndex < products.length || nextIndex >= products.length * 2) {
-        const normalized = products.length + modulo(nextIndex, products.length);
-        virtualIndexRef.current = normalized;
-        centerCard(normalized, true);
-      }
-    }, 780);
-  };
+  }
 
   return (
     <section
       id="prerolls"
+      ref={sectionRef}
       className="relative overflow-hidden bg-ink-deep py-[clamp(3.5rem,8vh,6rem)] text-[#f3ede1]"
     >
       <div className="mx-auto w-full max-w-[1500px] px-6 text-center sm:px-10">
@@ -195,7 +251,7 @@ export default function PrerollsShowcase() {
 
         <button
           type="button"
-          onClick={() => move(-1)}
+          onClick={() => nudge(-1)}
           aria-label="Previous product"
           className="group absolute left-3 top-1/2 z-30 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-black/70 shadow-2xl backdrop-blur-md transition hover:border-gold hover:bg-gold hover:text-ink-deep sm:left-7 sm:h-14 sm:w-14"
         >
@@ -212,7 +268,7 @@ export default function PrerollsShowcase() {
         </button>
         <button
           type="button"
-          onClick={() => move(1)}
+          onClick={() => nudge(1)}
           aria-label="Next product"
           className="group absolute right-3 top-1/2 z-30 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-black/70 shadow-2xl backdrop-blur-md transition hover:border-gold hover:bg-gold hover:text-ink-deep sm:right-7 sm:h-14 sm:w-14"
         >
@@ -231,13 +287,9 @@ export default function PrerollsShowcase() {
         <div ref={viewportRef} className="w-full overflow-hidden">
           <div
             ref={trackRef}
-            className={`no-scrollbar flex snap-x snap-mandatory gap-5 overflow-x-auto px-[12vw] transition-opacity duration-300 will-change-transform sm:gap-7 md:w-max md:snap-none md:overflow-visible ${
+            className={`flex w-max cursor-grab gap-5 px-[12vw] transition-opacity duration-300 will-change-transform active:cursor-grabbing sm:gap-7 ${
               isReady ? "opacity-100" : "opacity-0"
             }`}
-            style={{
-              touchAction: "pan-x pan-y",
-              overscrollBehaviorX: "contain",
-            }}
           >
             {loopedProducts.map((product, index) => (
               <motion.div
@@ -246,7 +298,7 @@ export default function PrerollsShowcase() {
                   cardRefs.current[index] = element;
                 }}
                 whileHover={{ y: -8 }}
-                className="group relative w-[82vw] max-w-[430px] shrink-0 snap-center overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#f3eee3] text-center text-ink-deep shadow-[0_26px_80px_rgba(0,0,0,0.28)] sm:w-[46vw] md:snap-none lg:w-[30vw] xl:w-[25vw]"
+                className="group relative w-[82vw] max-w-[430px] shrink-0 select-none overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#f3eee3] text-center text-ink-deep shadow-[0_26px_80px_rgba(0,0,0,0.28)] sm:w-[46vw] lg:w-[30vw] xl:w-[25vw]"
               >
                 <div
                   className="absolute inset-x-0 top-0 h-1.5"
@@ -265,6 +317,7 @@ export default function PrerollsShowcase() {
                     alt={product.name}
                     width={750}
                     height={900}
+                    draggable={false}
                     className="relative h-full w-full object-contain transition-transform duration-700 ease-out group-hover:scale-[1.045]"
                   />
                 </div>
