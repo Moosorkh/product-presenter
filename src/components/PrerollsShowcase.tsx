@@ -12,13 +12,23 @@ import MagneticButton from "./MagneticButton";
 
 gsap.registerPlugin(Draggable, InertiaPlugin, useGSAP);
 
-const products = [
+type CardSize = "sm" | "md" | "lg" | "xl";
+
+const products: Array<{
+  name: string;
+  tag: string;
+  blurb: string;
+  src: string;
+  color: string;
+  size: CardSize;
+}> = [
   {
     name: "Signature Line",
     tag: "Blueberry Lemon Haze",
     blurb: "The original Dime all-in-one, built around bold terpene flavor.",
     src: "/ROYALPEAR-6-9.png",
     color: "#2157b9",
+    size: "xl",
   },
   {
     name: "Balanced Line",
@@ -26,6 +36,7 @@ const products = [
     blurb: "A bright, balanced profile in Dime's rechargeable all-in-one hardware.",
     src: "/ROYALPEAR-4-13.png",
     color: "#a9d9ef",
+    size: "sm",
   },
   {
     name: "Rosin Line",
@@ -33,6 +44,7 @@ const products = [
     blurb: "Solventless rosin, low-temperature hardware, and full terpene expression.",
     src: "/ROYALPEAR-3-17.png",
     color: "#c98f80",
+    size: "lg",
   },
   {
     name: "Cannabis Gummies",
@@ -40,6 +52,7 @@ const products = [
     blurb: "A full-spectrum edible made for a smooth, measured experience.",
     src: "/ROYALPEAR-11-4.png",
     color: "#66a9df",
+    size: "md",
   },
   {
     name: "Wellness Line",
@@ -47,6 +60,7 @@ const products = [
     blurb: "A fruit-forward wellness format with Dime quality in every serving.",
     src: "/ROYALPEAR-1-2.png",
     color: "#e97c8e",
+    size: "sm",
   },
   {
     name: "Broad Spectrum",
@@ -54,6 +68,7 @@ const products = [
     blurb: "A precise softgel format for a simple, consistent daily ritual.",
     src: "/ROYALPEAR.png",
     color: "#d29ac9",
+    size: "md",
   },
   {
     name: "State Exclusives",
@@ -61,8 +76,23 @@ const products = [
     blurb: "Limited regional drops that bring new flavor to familiar hardware.",
     src: "/ROYALPEAR-2-22.png",
     color: "#ed643e",
+    size: "lg",
   },
 ];
+
+const sizeClasses: Record<CardSize, string> = {
+  sm: "w-[64vw] max-w-[280px] sm:w-[30vw] sm:max-w-[260px] lg:w-[18vw] xl:w-[15vw]",
+  md: "w-[76vw] max-w-[360px] sm:w-[38vw] sm:max-w-[340px] lg:w-[23vw] xl:w-[20vw]",
+  lg: "w-[86vw] max-w-[440px] sm:w-[48vw] sm:max-w-[440px] lg:w-[31vw] xl:w-[27vw]",
+  xl: "w-[92vw] max-w-[520px] sm:w-[56vw] sm:max-w-[540px] lg:w-[37vw] xl:w-[32vw]",
+};
+
+const imageHeightClasses: Record<CardSize, string> = {
+  sm: "h-[clamp(180px,24vh,270px)]",
+  md: "h-[clamp(210px,28vh,330px)]",
+  lg: "h-[clamp(240px,33vh,390px)]",
+  xl: "h-[clamp(265px,37vh,430px)]",
+};
 
 // Three copies of the deck sit side by side so a free drag never runs out of
 // cards — onDrag/onThrowUpdate silently jumps the track back by one deck
@@ -80,6 +110,8 @@ export default function PrerollsShowcase() {
   const trackRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const draggableRef = useRef<Draggable | null>(null);
+  const stopAutoScrollRef = useRef<() => void>(() => {});
+  const scheduleAutoScrollResumeRef = useRef<() => void>(() => {});
   const [activeIndex, setActiveIndex] = useState(0);
   const [isReady, setIsReady] = useState(false);
 
@@ -134,9 +166,45 @@ export default function PrerollsShowcase() {
         setIsReady(true);
       };
 
+      // Idle auto-drift, like blacklead.studio's gallery: a slow constant
+      // crawl that pauses the moment a drag starts and quietly resumes a
+      // beat after the user lets go. The huge travel distance combined with
+      // a live wrap in `modifiers` means it never needs to restart/loop —
+      // modifiers run inside the same tween, so (unlike wrapAtRest) it's
+      // safe to correct position every frame here.
+      const AUTO_SCROLL_SPEED = 26;
+      let autoScrollTween: gsap.core.Tween | null = null;
+      let resumeTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const startAutoScroll = () => {
+        autoScrollTween?.kill();
+        const distance = 400000;
+        autoScrollTween = gsap.to(track, {
+          x: `-=${distance}`,
+          duration: distance / AUTO_SCROLL_SPEED,
+          ease: "none",
+          modifiers: {
+            x: gsap.utils.unitize((value: string) =>
+              gsap.utils.wrap(-getSetWidth() * 2, 0, parseFloat(value))
+            ),
+          },
+        });
+      };
+
+      const stopAutoScroll = () => {
+        autoScrollTween?.kill();
+        autoScrollTween = null;
+      };
+
+      const scheduleAutoScrollResume = () => {
+        if (resumeTimer) clearTimeout(resumeTimer);
+        resumeTimer = setTimeout(startAutoScroll, 1800);
+      };
+
       const frame = requestAnimationFrame(() => {
         place();
         applyBounds();
+        startAutoScroll();
       });
       const resizeObserver = new ResizeObserver(() => {
         const setWidth = getSetWidth();
@@ -154,38 +222,74 @@ export default function PrerollsShowcase() {
         allowNativeTouchScrolling: "y" as unknown as boolean,
         dragClickables: true,
         onPress() {
+          if (resumeTimer) clearTimeout(resumeTimer);
+          stopAutoScroll();
           gsap.killTweensOf(track);
         },
         onThrowComplete() {
           wrapAtRest();
           syncActiveIndex();
+          scheduleAutoScrollResume();
         },
         onDragEnd() {
           if (!this.tween) {
             wrapAtRest();
             syncActiveIndex();
+            scheduleAutoScrollResume();
           }
         },
       });
       draggableRef.current = draggable;
+      stopAutoScrollRef.current = stopAutoScroll;
+      scheduleAutoScrollResumeRef.current = scheduleAutoScrollResume;
 
       return () => {
         cancelAnimationFrame(frame);
+        if (resumeTimer) clearTimeout(resumeTimer);
         resizeObserver.disconnect();
+        stopAutoScroll();
         draggable.kill();
       };
     },
     { scope: sectionRef }
   );
 
+  function nearestIndexToCenter() {
+    const viewport = viewportRef.current;
+    let nearestIndex = 0;
+    if (!viewport) return nearestIndex;
+    const viewportCenter =
+      viewport.getBoundingClientRect().left + viewport.clientWidth / 2;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    cardRefs.current.forEach((card, index) => {
+      if (!card) return;
+      const rect = card.getBoundingClientRect();
+      const distance = Math.abs(rect.left + rect.width / 2 - viewportCenter);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+    return nearestIndex;
+  }
+
   function nudge(direction: 1 | -1) {
     const track = trackRef.current;
     if (!track) return;
+    stopAutoScrollRef.current();
     gsap.killTweensOf(track);
 
-    const cardWidth = cardRefs.current[0]?.offsetWidth ?? 0;
-    const gap = parseFloat(getComputedStyle(track).columnGap || "0");
-    const x = (gsap.getProperty(track, "x") as number) - direction * (cardWidth + gap);
+    // Cards vary in width, so the next card's travel distance is measured
+    // from real DOM geometry (center-to-center) rather than a fixed step.
+    const currentIndex = nearestIndexToCenter();
+    const currentCard = cardRefs.current[currentIndex];
+    const targetCard = cardRefs.current[currentIndex + direction];
+    if (!currentCard || !targetCard) return;
+
+    const currentCenter = currentCard.getBoundingClientRect().left + currentCard.offsetWidth / 2;
+    const targetCenter = targetCard.getBoundingClientRect().left + targetCard.offsetWidth / 2;
+    const delta = targetCenter - currentCenter;
+    const x = (gsap.getProperty(track, "x") as number) - delta;
 
     gsap.to(track, {
       x,
@@ -198,22 +302,8 @@ export default function PrerollsShowcase() {
           gsap.set(track, { x: gsap.utils.wrap(-setWidth * 2, 0, current) });
         }
         draggableRef.current?.update();
-        const viewport = viewportRef.current;
-        if (!viewport) return;
-        const viewportCenter =
-          viewport.getBoundingClientRect().left + viewport.clientWidth / 2;
-        let nearestIndex = 0;
-        let nearestDistance = Number.POSITIVE_INFINITY;
-        cardRefs.current.forEach((card, index) => {
-          if (!card) return;
-          const rect = card.getBoundingClientRect();
-          const distance = Math.abs(rect.left + rect.width / 2 - viewportCenter);
-          if (distance < nearestDistance) {
-            nearestDistance = distance;
-            nearestIndex = index;
-          }
-        });
-        setActiveIndex(modulo(nearestIndex, products.length));
+        setActiveIndex(modulo(nearestIndexToCenter(), products.length));
+        scheduleAutoScrollResumeRef.current();
       },
     });
   }
@@ -287,7 +377,7 @@ export default function PrerollsShowcase() {
         <div ref={viewportRef} className="w-full overflow-hidden">
           <div
             ref={trackRef}
-            className={`flex w-max cursor-grab gap-5 px-[12vw] transition-opacity duration-300 will-change-transform active:cursor-grabbing sm:gap-7 ${
+            className={`flex w-max cursor-grab items-end gap-3 px-[8vw] transition-opacity duration-300 will-change-transform active:cursor-grabbing sm:gap-4 sm:px-[6vw] ${
               isReady ? "opacity-100" : "opacity-0"
             }`}
           >
@@ -298,13 +388,15 @@ export default function PrerollsShowcase() {
                   cardRefs.current[index] = element;
                 }}
                 whileHover={{ y: -8 }}
-                className="group relative w-[82vw] max-w-[430px] shrink-0 select-none overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#f3eee3] text-center text-ink-deep shadow-[0_26px_80px_rgba(0,0,0,0.28)] sm:w-[46vw] lg:w-[30vw] xl:w-[25vw]"
+                className={`group relative shrink-0 select-none overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#f3eee3] text-center text-ink-deep shadow-[0_26px_80px_rgba(0,0,0,0.28)] ${sizeClasses[product.size]}`}
               >
                 <div
                   className="absolute inset-x-0 top-0 h-1.5"
                   style={{ backgroundColor: product.color }}
                 />
-                <div className="relative flex h-[clamp(240px,34vh,410px)] items-center justify-center overflow-hidden p-5">
+                <div
+                  className={`relative flex items-center justify-center overflow-hidden p-5 ${imageHeightClasses[product.size]}`}
+                >
                   <div
                     aria-hidden
                     className="absolute inset-0 opacity-20 blur-3xl transition-opacity duration-500 group-hover:opacity-35"
