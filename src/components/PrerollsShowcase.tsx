@@ -238,6 +238,12 @@ export default function PrerollsShowcase() {
             scheduleAutoScrollResume();
           }
         },
+        // A plain click (press + release with no real movement) never fires
+        // onDragStart/onDragEnd, so without this the auto-drift stopped by
+        // onPress would never be told to come back.
+        onClick() {
+          scheduleAutoScrollResume();
+        },
       });
       draggableRef.current = draggable;
       stopAutoScrollRef.current = stopAutoScroll;
