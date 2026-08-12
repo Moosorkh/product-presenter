@@ -2,9 +2,15 @@
 
 import { useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useGSAP } from "@gsap/react";
 import VapePen from "./VapePen";
 import StrainIcon from "./StrainIcon";
 import { flavors } from "@/data/products";
+import { createScrollPause } from "@/lib/scrollHold";
+
+gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 const productPositions = [
   { x: -92, y: 6, rotate: 0, scale: 1.16, opacity: 1 },
@@ -62,8 +68,29 @@ export default function RelatedProducts() {
   const [activeIndex, setActiveIndex] = useState(4);
   const [direction, setDirection] = useState(1);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const activeFlavor = flavors[activeIndex];
   const foreground = readableText(activeFlavor.penColor);
+
+  // This section isn't pinned, so nothing otherwise slows a fast scroll down
+  // as it arrives — freeze scrolling once it fills the viewport so it can't
+  // be blown straight past before it registers.
+  useGSAP(
+    () => {
+      const pause = createScrollPause(800);
+      const trigger = ScrollTrigger.create({
+        trigger: sectionRef.current,
+        start: "top 15%",
+        onEnter: () => pause.trigger(),
+      });
+
+      return () => {
+        trigger.kill();
+        pause.destroy();
+      };
+    },
+    { scope: sectionRef }
+  );
 
   const move = (step: number) => {
     setDirection(step);
@@ -100,6 +127,7 @@ export default function RelatedProducts() {
   return (
     <motion.section
       id="edibles"
+      ref={sectionRef}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       className="relative isolate overflow-hidden border-t-[14px] border-[#080808]"
