@@ -6,6 +6,10 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import FAQ from "./FAQ";
 import WellnessTeaser from "./WellnessTeaser";
+import {
+  createAbsoluteVideoScrubber,
+  createBufferedVideoSource,
+} from "@/lib/videoScrub";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -22,7 +26,12 @@ export default function FAQCTAStory() {
 
         if (!video) return;
 
-        video.pause();
+        const source = createBufferedVideoSource(
+          video,
+          "/CTA-BG-video.mp4?v=2",
+          storyRef.current ?? video
+        );
+        const videoScrubber = createAbsoluteVideoScrubber(video);
 
         let faqHoldTrigger: ScrollTrigger | null = null;
         let ctaHoldTrigger: ScrollTrigger | null = null;
@@ -62,21 +71,18 @@ export default function FAQCTAStory() {
           end: "bottom bottom",
           invalidateOnRefresh: true,
           onUpdate: ({ progress }) => {
-            if (!Number.isFinite(video.duration)) return;
-
-            const nextTime = progress * video.duration;
-
-            if (Math.abs(video.currentTime - nextTime) >= 1 / 24) {
-              video.currentTime = nextTime;
-            }
+            videoScrubber.scrubToProgress(progress);
           },
         });
+
+        videoScrubber.scrubToProgress(scrubTrigger.progress);
 
         return () => {
           scrubTrigger.kill();
           faqHoldTrigger?.kill();
           ctaHoldTrigger?.kill();
-          video.pause();
+          videoScrubber.destroy();
+          source.destroy();
         };
       });
 
@@ -97,10 +103,9 @@ export default function FAQCTAStory() {
           className="absolute inset-0 h-full w-full object-cover md:translate-x-[8%] md:scale-[1.18]"
           muted
           playsInline
-          preload="metadata"
+          preload="auto"
           tabIndex={-1}
         >
-          <source src="/CTA-BG-video.mp4" type="video/mp4" />
         </video>
         <div
           aria-hidden

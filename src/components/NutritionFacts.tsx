@@ -7,6 +7,10 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import Reveal from "./Reveal";
 import { heroFlavor, labSpecs } from "@/data/products";
+import {
+  createBufferedVideoSource,
+  createHybridVideoScrubber,
+} from "@/lib/videoScrub";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -50,53 +54,39 @@ export default function NutritionFacts() {
 
         if (!video) return;
 
-        video.pause();
+        const source = createBufferedVideoSource(
+          video,
+          "/background-video1.mp4?v=2",
+          sectionRef.current ?? video
+        );
+        const scrubber = createHybridVideoScrubber(video);
+        let previousProgress = 0;
 
-        const setPlayback = (isActive: boolean) => {
-          if (isActive) {
-            void video.play().catch(() => {
-              // Muted viewport playback can still be blocked by browser settings.
-            });
-          } else {
-            video.pause();
-          }
-        };
-
-        let scrubTrigger: ScrollTrigger | null = null;
-        const resumePlayback = gsap
-          .delayedCall(0.18, () => {
-            if (scrubTrigger?.isActive) setPlayback(true);
-          })
-          .pause();
-
-        scrubTrigger = ScrollTrigger.create({
+        const scrubTrigger = ScrollTrigger.create({
           trigger: sectionRef.current,
           start: "top bottom",
           end: "bottom top",
-          onToggle: ({ isActive }) => {
-            if (!isActive) resumePlayback.pause(0);
-            setPlayback(isActive);
+          onToggle: (self) => {
+            previousProgress = self.progress;
+            scrubber.setActive(self.isActive);
           },
-          onUpdate: ({ progress }) => {
-            if (!Number.isFinite(video.duration)) return;
-
-            video.pause();
-            const nextTime = progress * video.duration;
-
-            if (Math.abs(video.currentTime - nextTime) >= 1 / 24) {
-              video.currentTime = nextTime;
-            }
-
-            resumePlayback.restart(true);
+          onUpdate: (self) => {
+            const delta = self.progress - previousProgress;
+            previousProgress = self.progress;
+            scrubber.scrubByProgress(delta);
+          },
+          onRefresh: (self) => {
+            previousProgress = self.progress;
           },
         });
 
-        setPlayback(scrubTrigger.isActive);
+        previousProgress = scrubTrigger.progress;
+        scrubber.setActive(scrubTrigger.isActive);
 
         return () => {
-          scrubTrigger?.kill();
-          resumePlayback.kill();
-          video.pause();
+          scrubTrigger.kill();
+          scrubber.destroy();
+          source.destroy();
         };
       });
 
@@ -185,15 +175,13 @@ export default function NutritionFacts() {
       <video
         ref={backgroundVideoRef}
         aria-hidden="true"
-        autoPlay
         className="pointer-events-none absolute inset-0 h-full w-full object-cover"
         loop
         muted
         playsInline
-        preload="metadata"
+        preload="auto"
         tabIndex={-1}
       >
-        <source src="/background-video1.mp4" type="video/mp4" />
       </video>
       <div
         aria-hidden
