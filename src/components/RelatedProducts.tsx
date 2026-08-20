@@ -119,7 +119,9 @@ export default function RelatedProducts() {
     // animate into their new slots, keeping the interaction tactile without
     // allowing the absolute-positioned lineup to drift out of frame.
     const projectedOffset = info.offset.x + info.velocity.x * 0.12;
-    if (Math.abs(projectedOffset) < 70) return;
+    const swipeThreshold =
+      (sectionRef.current?.clientWidth ?? window.innerWidth) < 640 ? 48 : 70;
+    if (Math.abs(projectedOffset) < swipeThreshold) return;
 
     move(projectedOffset < 0 ? 1 : -1);
   };
@@ -146,14 +148,14 @@ export default function RelatedProducts() {
         }}
       />
 
-      <div className="relative min-h-[760px] w-full sm:min-h-[820px] lg:min-h-[850px]">
-        <div className="relative z-20 flex min-h-[760px] items-start px-7 pb-8 pt-[448px] sm:min-h-[820px] sm:px-12 sm:pt-[500px] lg:min-h-[850px] lg:w-[31%] lg:items-center lg:px-10 lg:pb-0 lg:pt-0 xl:px-14">
-          <div className="grid w-full max-w-[420px] grid-rows-[minmax(0,1fr)_auto] gap-5 lg:h-[590px] lg:gap-8">
-            <div className="relative min-h-[205px] sm:min-h-[230px] lg:min-h-0">
+      <div className="relative flex w-full flex-col lg:block lg:min-h-[850px]">
+        <div className="relative z-20 order-2 flex w-full px-6 pb-6 pt-6 sm:px-10 sm:pb-8 sm:pt-8 lg:absolute lg:inset-y-0 lg:left-0 lg:order-none lg:w-[31%] lg:items-center lg:px-10 lg:pb-0 lg:pt-0 xl:px-14">
+          <div className="relative grid w-full max-w-[420px] grid-rows-[auto_auto] lg:h-[590px] lg:grid-rows-[minmax(0,1fr)_auto] lg:gap-8">
+            <div className="relative lg:min-h-0">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={activeFlavor.id}
-                  className="absolute inset-x-0 top-0"
+                  className="relative lg:absolute lg:inset-x-0 lg:top-0"
                   initial={{ opacity: 0, x: direction * 28 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: direction * -20 }}
@@ -169,7 +171,7 @@ export default function RelatedProducts() {
                     {activeFlavor.tagline}.
                   </p>
 
-                  <div className="mt-4 flex items-center gap-3 lg:mt-7">
+                  <div className="mt-4 flex items-center gap-3 pr-[104px] lg:mt-7 lg:pr-0">
                     <span
                       className="inline-flex items-center gap-2 rounded-full border bg-white/20 px-4 py-2 text-sm font-bold"
                       style={{ borderColor: `${foreground}38` }}
@@ -190,7 +192,7 @@ export default function RelatedProducts() {
             </div>
 
             <div
-              className="flex shrink-0 justify-center gap-3 lg:justify-start lg:self-end"
+              className="absolute bottom-0 right-0 flex shrink-0 gap-2 lg:static lg:justify-start lg:gap-3 lg:self-end"
               aria-label="Flavor carousel controls"
             >
               <button
@@ -237,7 +239,7 @@ export default function RelatedProducts() {
           </div>
         </div>
 
-        <div className="absolute inset-x-0 top-0 z-10 h-[430px] overflow-hidden sm:h-[480px] lg:inset-y-0 lg:left-[31%] lg:right-0 lg:h-auto">
+        <div className="relative order-1 h-[clamp(420px,58svh,500px)] min-h-[420px] overflow-hidden sm:min-h-[460px] lg:absolute lg:inset-y-0 lg:left-[31%] lg:right-0 lg:order-none lg:h-auto lg:min-h-0">
           <div className="absolute inset-0 bg-gradient-to-b from-[#f5f0e5] via-[#f5f0e5] to-[#efe5d1] lg:hidden" />
           <SmokeBackdrop
             flavorId={activeFlavor.id}
@@ -262,7 +264,7 @@ export default function RelatedProducts() {
               setIsDragging(true);
             }}
             onDragEnd={handleDragEnd}
-            style={{ touchAction: "pan-y" }}
+            style={{ touchAction: "pan-y", WebkitUserSelect: "none" }}
           >
             {flavors.map((flavor, index) => {
               const slot = (index - activeIndex + flavors.length) % flavors.length;
