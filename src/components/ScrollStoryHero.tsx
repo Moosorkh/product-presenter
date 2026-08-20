@@ -33,6 +33,7 @@ export default function ScrollStoryHero() {
         gsap.set(glowRef.current, { opacity: 0.12, scale: 0.85 });
         gsap.set(desktopHeroRef.current, {
           "--hero-pen-color": HERO_GOLD,
+          transformOrigin: "center top",
         });
         gsap.set(penWrapRef.current, {
           x: 0,
@@ -179,6 +180,16 @@ export default function ScrollStoryHero() {
               ease: "none",
             },
             0.2
+          )
+          .to(
+            desktopHeroRef.current,
+            {
+              scale: 0.965,
+              filter: "brightness(0.55) saturate(0.82)",
+              duration: 0.8,
+              ease: "power2.inOut",
+            },
+            3.25
           );
       });
 

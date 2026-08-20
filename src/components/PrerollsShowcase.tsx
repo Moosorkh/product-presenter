@@ -6,11 +6,12 @@ import { motion } from "framer-motion";
 import gsap from "gsap";
 import { Draggable } from "gsap/Draggable";
 import { InertiaPlugin } from "gsap/InertiaPlugin";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import Reveal from "./Reveal";
 import MagneticButton from "./MagneticButton";
 
-gsap.registerPlugin(Draggable, InertiaPlugin, useGSAP);
+gsap.registerPlugin(Draggable, InertiaPlugin, ScrollTrigger, useGSAP);
 
 type CardSize = "sm" | "md" | "lg" | "xl";
 
@@ -88,10 +89,10 @@ const sizeClasses: Record<CardSize, string> = {
 };
 
 const imageHeightClasses: Record<CardSize, string> = {
-  sm: "h-[clamp(180px,24vh,270px)]",
-  md: "h-[clamp(210px,28vh,330px)]",
-  lg: "h-[clamp(240px,33vh,390px)]",
-  xl: "h-[clamp(265px,37vh,430px)]",
+  sm: "h-[clamp(180px,24vh,270px)] lg:h-[clamp(150px,20vh,210px)]",
+  md: "h-[clamp(210px,28vh,330px)] lg:h-[clamp(170px,22vh,235px)]",
+  lg: "h-[clamp(240px,33vh,390px)] lg:h-[clamp(190px,24vh,255px)]",
+  xl: "h-[clamp(265px,37vh,430px)] lg:h-[clamp(210px,26vh,275px)]",
 };
 
 // Three copies of the deck sit side by side so a free drag never runs out of
@@ -106,6 +107,11 @@ function modulo(value: number, length: number) {
 
 export default function PrerollsShowcase() {
   const sectionRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const collectionLayerRef = useRef<HTMLDivElement>(null);
+  const portalMaskTextRef = useRef<SVGGElement>(null);
+  const portalAnchorTextRef = useRef<SVGTextElement>(null);
+  const portalAnchorRef = useRef<SVGRectElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -260,6 +266,127 @@ export default function PrerollsShowcase() {
     { scope: sectionRef }
   );
 
+  useGSAP(
+    () => {
+      const mm = gsap.matchMedia();
+
+      mm.add(
+        "(min-width: 900px) and (min-height: 560px) and (prefers-reduced-motion: no-preference)",
+        () => {
+          const heading = headingRef.current;
+          const section = sectionRef.current;
+          const collectionLayer = collectionLayerRef.current;
+          const portalMaskText = portalMaskTextRef.current;
+          const portalAnchorText = portalAnchorTextRef.current;
+          const portalAnchor = portalAnchorRef.current;
+
+          if (
+            !section ||
+            !heading ||
+            !collectionLayer ||
+            !portalMaskText ||
+            !portalAnchorText ||
+            !portalAnchor
+          ) {
+            return;
+          }
+
+          const alignPortalToCharacter = () => {
+            const firstCharacter = portalAnchorText.getExtentOfChar(0);
+            const anchorX = firstCharacter.x + firstCharacter.width * 0.5;
+            const anchorY = firstCharacter.y + firstCharacter.height * 0.5;
+
+            gsap.set(portalAnchor, {
+              attr: {
+                x: anchorX - 8,
+                y: anchorY - 4,
+                width: 16,
+                height: 8,
+              },
+              opacity: 1,
+            });
+
+            const maskBounds = portalMaskText.getBBox();
+            const originX =
+              ((anchorX - maskBounds.x) / maskBounds.width) * 100;
+            const originY =
+              ((anchorY - maskBounds.y) / maskBounds.height) * 100;
+
+            gsap.set(portalMaskText, {
+              transformOrigin: `${originX}% ${originY}%`,
+              smoothOrigin: false,
+            });
+          };
+
+          gsap.set(collectionLayer, {
+            opacity: 1,
+            WebkitMaskImage: 'url("#collection-title-portal")',
+            maskImage: 'url("#collection-title-portal")',
+            WebkitMaskRepeat: "no-repeat",
+            maskRepeat: "no-repeat",
+            WebkitMaskSize: "100% 100%",
+            maskSize: "100% 100%",
+          });
+          gsap.set(section, { pointerEvents: "auto" });
+          gsap.set(heading, { opacity: 1 });
+          gsap.set(portalMaskText, {
+            opacity: 0,
+            scale: 1,
+            y: 0,
+          });
+          alignPortalToCharacter();
+          const portalBounds = portalMaskText.getBBox();
+          const portalCenterY = portalBounds.y + portalBounds.height * 0.5;
+
+          const portalTimeline = gsap.timeline({
+            scrollTrigger: {
+              trigger: sectionRef.current,
+              start: "top 64px",
+              end: "bottom bottom",
+              scrub: true,
+              invalidateOnRefresh: true,
+              onUpdate: ({ progress }) => {
+                section.style.pointerEvents = progress >= 0.94 ? "none" : "auto";
+              },
+            },
+          });
+
+          portalTimeline
+            .set(portalMaskText, { opacity: 1 }, 0.3)
+            .set(heading, { opacity: 0 }, 0.3)
+            .to(
+              portalMaskText,
+              {
+                y: () => collectionLayer.clientHeight * 0.5 - portalCenterY,
+                scale: 1.12,
+                duration: 0.18,
+                ease: "power2.inOut",
+              },
+              0.3
+            )
+            .to(
+              portalMaskText,
+              {
+                scale: 400,
+                duration: 0.52,
+                ease: "power2.in",
+              },
+              0.48
+            );
+
+          return () => {
+            section.style.pointerEvents = "auto";
+            portalTimeline.scrollTrigger?.kill();
+            portalTimeline.kill();
+          };
+        }
+      );
+
+      return () => mm.revert();
+    },
+    { scope: sectionRef }
+  );
+
   function nearestIndexToCenter() {
     const viewport = viewportRef.current;
     let nearestIndex = 0;
@@ -318,24 +445,32 @@ export default function PrerollsShowcase() {
     <section
       id="prerolls"
       ref={sectionRef}
-      className="relative overflow-hidden bg-ink-deep py-[clamp(3.5rem,8vh,6rem)] text-[#f3ede1]"
+      className="relative z-20 overflow-x-clip overflow-y-visible text-[#f3ede1] lg:motion-safe:h-[240svh] lg:motion-safe:min-h-[1500px]"
     >
-      <div className="mx-auto w-full max-w-[1500px] px-6 text-center sm:px-10">
-        <Reveal className="mx-auto max-w-3xl">
-          <p className="text-sm font-bold uppercase tracking-[0.3em] text-gold">
-            The Dime collection
-          </p>
-          <h2 className="mt-4 text-[clamp(2.8rem,5vw,5.4rem)] font-black leading-[0.94] tracking-[-0.055em]">
-            More ways to Think Higher.
-          </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[#f3ede1]/65 sm:text-xl">
-            Explore the full family, from signature all-in-ones and rosin to
-            gummies, wellness, and regional releases.
-          </p>
-        </Reveal>
-      </div>
+      <div className="relative lg:motion-safe:sticky lg:motion-safe:top-16 lg:motion-safe:h-[calc(100svh-64px)] lg:motion-safe:overflow-hidden">
+        <div
+          ref={collectionLayerRef}
+          className="relative h-full bg-ink-deep py-[clamp(3.5rem,8vh,6rem)] lg:py-8"
+        >
+          <div className="mx-auto w-full max-w-[1500px] px-6 text-center sm:px-10">
+            <Reveal className="mx-auto max-w-3xl">
+              <p className="text-sm font-bold uppercase tracking-[0.3em] text-gold">
+                The Dime collection
+              </p>
+              <h2
+                ref={headingRef}
+                className="relative z-50 mt-4 text-[clamp(2.8rem,5vw,5.4rem)] font-black leading-[0.94] tracking-[-0.055em]"
+              >
+                More ways to Think Higher.
+              </h2>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-[#f3ede1]/65 sm:text-xl">
+                Explore the full family, from signature all-in-ones and rosin to
+                gummies, wellness, and regional releases.
+              </p>
+            </Reveal>
+          </div>
 
-      <div className="relative mt-9 sm:mt-11">
+      <div className="relative mt-9 sm:mt-11 lg:mt-5">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-y-0 left-0 z-20 w-16 bg-gradient-to-r from-ink-deep via-ink-deep/80 to-transparent sm:w-28"
@@ -419,14 +554,14 @@ export default function PrerollsShowcase() {
                     className="relative h-full w-full object-contain transition-transform duration-700 ease-out group-hover:scale-[1.045]"
                   />
                 </div>
-                <div className="relative min-h-[155px] border-t border-black/10 bg-[#f8f4eb] p-5 sm:p-7">
+                <div className="relative min-h-[155px] border-t border-black/10 bg-[#f8f4eb] p-5 sm:p-7 lg:min-h-[140px] lg:p-4">
                   <p className="text-xs font-black uppercase tracking-[0.2em] text-[#9b7623]">
                     {product.name}
                   </p>
-                  <h3 className="mt-3 text-2xl font-black tracking-[-0.035em] sm:text-3xl">
+                  <h3 className="mt-3 text-2xl font-black tracking-[-0.035em] sm:text-3xl lg:text-2xl">
                     {product.tag}
                   </h3>
-                  <p className="mx-auto mt-3 max-w-[30rem] text-sm leading-relaxed text-black/60 sm:text-base">
+                  <p className="mx-auto mt-3 max-w-[30rem] text-sm leading-relaxed text-black/60 sm:text-base lg:text-sm lg:leading-snug">
                     {product.blurb}
                   </p>
                 </div>
@@ -436,7 +571,7 @@ export default function PrerollsShowcase() {
         </div>
       </div>
 
-      <div className="mx-auto mt-6 flex w-full max-w-[1500px] flex-col items-center gap-6 px-6 sm:px-10">
+      <div className="mx-auto mt-6 flex w-full max-w-[1500px] flex-col items-center gap-6 px-6 sm:px-10 lg:mt-4 lg:gap-3">
         <div className="flex items-center gap-2" aria-label="Selected product">
           {products.map((product, index) => (
             <span
@@ -457,6 +592,57 @@ export default function PrerollsShowcase() {
             Find Dime
           </MagneticButton>
         </Reveal>
+      </div>
+
+        </div>
+
+        <svg
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full"
+        >
+            <defs>
+              <mask
+                id="collection-title-portal"
+                x="0"
+                y="0"
+                width="100%"
+                height="100%"
+                maskUnits="userSpaceOnUse"
+              >
+                <rect width="100%" height="100%" fill="white" />
+                <g
+                  ref={portalMaskTextRef}
+                  fill="black"
+                  style={{ transformBox: "view-box" }}
+                >
+                    <text
+                      x="50%"
+                      y="137"
+                      textAnchor="middle"
+                      className="text-[clamp(2.8rem,5vw,5.4rem)] font-black tracking-[-0.055em]"
+                    >
+                      More ways to Think
+                    </text>
+                    <text
+                      ref={portalAnchorTextRef}
+                      x="50%"
+                      y="205"
+                      textAnchor="middle"
+                      className="text-[clamp(2.8rem,5vw,5.4rem)] font-black tracking-[-0.055em]"
+                    >
+                      Higher.
+                    </text>
+                    <rect
+                      ref={portalAnchorRef}
+                      width="8"
+                      height="8"
+                      rx="1"
+                      opacity="0"
+                    />
+                </g>
+              </mask>
+            </defs>
+        </svg>
       </div>
     </section>
   );

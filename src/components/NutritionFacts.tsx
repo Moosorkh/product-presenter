@@ -37,12 +37,68 @@ const rowVariants = {
 
 export default function NutritionFacts() {
   const sectionRef = useRef<HTMLElement>(null);
+  const backgroundVideoRef = useRef<HTMLVideoElement>(null);
   const checkpointsRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
 
   useGSAP(
     () => {
       const mm = gsap.matchMedia();
+
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        const video = backgroundVideoRef.current;
+
+        if (!video) return;
+
+        video.pause();
+
+        const setPlayback = (isActive: boolean) => {
+          if (isActive) {
+            void video.play().catch(() => {
+              // Muted viewport playback can still be blocked by browser settings.
+            });
+          } else {
+            video.pause();
+          }
+        };
+
+        let scrubTrigger: ScrollTrigger | null = null;
+        const resumePlayback = gsap
+          .delayedCall(0.18, () => {
+            if (scrubTrigger?.isActive) setPlayback(true);
+          })
+          .pause();
+
+        scrubTrigger = ScrollTrigger.create({
+          trigger: sectionRef.current,
+          start: "top bottom",
+          end: "bottom top",
+          onToggle: ({ isActive }) => {
+            if (!isActive) resumePlayback.pause(0);
+            setPlayback(isActive);
+          },
+          onUpdate: ({ progress }) => {
+            if (!Number.isFinite(video.duration)) return;
+
+            video.pause();
+            const nextTime = progress * video.duration;
+
+            if (Math.abs(video.currentTime - nextTime) >= 1 / 24) {
+              video.currentTime = nextTime;
+            }
+
+            resumePlayback.restart(true);
+          },
+        });
+
+        setPlayback(scrubTrigger.isActive);
+
+        return () => {
+          scrubTrigger?.kill();
+          resumePlayback.kill();
+          video.pause();
+        };
+      });
 
       mm.add("(min-width: 900px) and (min-height: 700px)", () => {
         gsap.set(".checkpoint-fill", {
@@ -124,8 +180,25 @@ export default function NutritionFacts() {
     <section
       id="nutrition"
       ref={sectionRef}
-      className="relative overflow-x-hidden bg-[#f1f0eb] py-24 text-[#151515] sm:py-32"
+      className="relative overflow-x-hidden bg-[#120e09] py-24 text-[#f7f1e7] sm:py-32"
     >
+      <video
+        ref={backgroundVideoRef}
+        aria-hidden="true"
+        autoPlay
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+        loop
+        muted
+        playsInline
+        preload="metadata"
+        tabIndex={-1}
+      >
+        <source src="/background-video1.mp4" type="video/mp4" />
+      </video>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-black/50 to-black/65"
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-[0.035] mix-blend-multiply"
@@ -134,14 +207,18 @@ export default function NutritionFacts() {
           backgroundSize: "740px auto",
         }}
       />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-24 bg-gradient-to-b from-transparent via-[#120e09]/55 to-[#120e09]"
+      />
 
       <div className="relative mx-auto max-w-7xl px-6">
         <div
           ref={checkpointsRef}
-          className="mx-auto w-full bg-[#f1f0eb] pb-3"
+          className="mx-auto w-full bg-transparent pb-3"
         >
           <Reveal className="mx-auto max-w-4xl text-center">
-            <p className="text-xs font-black uppercase tracking-[0.34em] text-[#a87719]">
+            <p className="text-xs font-black uppercase tracking-[0.34em] text-[#efbd59]">
               Certificate Analysis
             </p>
             <h2 className="mt-5 text-[clamp(3.4rem,6vw,6.8rem)] font-black leading-[0.88] tracking-[-0.06em]">
@@ -149,15 +226,15 @@ export default function NutritionFacts() {
               <br />
               Not the hype.
             </h2>
-            <p className="mx-auto mt-7 max-w-2xl text-base leading-relaxed text-black/60 sm:text-lg">
+            <p className="mx-auto mt-7 max-w-2xl text-base leading-relaxed text-white/70 sm:text-lg">
               Every unit connects to a batch record. This illustrative analysis
               shows how {heroFlavor.name} moves from documented inputs to a
               third-party certificate.
             </p>
           </Reveal>
 
-          <div className="mx-auto mt-12 max-w-5xl border-y border-black/10 py-8">
-            <p className="mb-6 text-center text-xs font-black uppercase tracking-[0.26em] text-black/48">
+          <div className="mx-auto mt-12 max-w-5xl border-y border-white/20 py-8">
+            <p className="mb-6 text-center text-xs font-black uppercase tracking-[0.26em] text-white/55">
               Documented verification checkpoints
             </p>
             <div className="space-y-4">
@@ -166,15 +243,15 @@ export default function NutritionFacts() {
                   key={item.label}
                   className="grid items-center gap-3 sm:grid-cols-[12rem_minmax(0,1fr)_8rem]"
                 >
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-black/58">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-white/65">
                     {item.label}
                   </p>
-                  <div className="h-9 overflow-hidden bg-black/[0.08]">
+                  <div className="h-9 overflow-hidden bg-white/15">
                     <div
                       className={`checkpoint-fill h-full ${
                         index === checkpoints.length - 1
                           ? "bg-gradient-to-r from-[#f6cf3f] to-[#bc7f10]"
-                          : "bg-[#262626]"
+                          : "bg-white/85"
                       }`}
                       style={{ width: item.width }}
                     />
@@ -182,8 +259,8 @@ export default function NutritionFacts() {
                   <p
                     className={`text-sm font-bold sm:text-right ${
                       index === checkpoints.length - 1
-                        ? "text-[#a26700]"
-                        : "text-black/60"
+                        ? "text-[#f2c05a]"
+                        : "text-white/65"
                     }`}
                   >
                     {item.detail}
@@ -197,17 +274,17 @@ export default function NutritionFacts() {
         <div className="mt-14 grid items-start gap-8 lg:grid-cols-[1.25fr_0.75fr]">
           <div ref={chartRef}>
             <Reveal y={26}>
-              <div className="border border-black/10 bg-[#f8f7f2] p-5 shadow-[0_24px_80px_rgba(22,22,20,0.06)] sm:p-9">
+              <div className="border border-white/20 bg-black/35 p-5 shadow-[0_24px_80px_rgba(0,0,0,0.18)] backdrop-blur-md sm:p-9">
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.28em] text-[#a87719]">
+                  <p className="text-xs font-black uppercase tracking-[0.28em] text-[#efbd59]">
                     Analysis path
                   </p>
                   <h3 className="mt-3 text-3xl font-black tracking-[-0.04em] sm:text-4xl">
                     Four checks. One release.
                   </h3>
                 </div>
-                <p className="max-w-[15rem] text-sm leading-relaxed text-black/48">
+                <p className="max-w-[15rem] text-sm leading-relaxed text-white/55">
                   A visual record of the review sequence attached to a batch.
                 </p>
               </div>
@@ -219,7 +296,7 @@ export default function NutritionFacts() {
                   aria-label="Illustrative batch review chart moving through identity, extraction, hardware and release checks"
                   className="h-auto w-full"
                 >
-                  <g stroke="#171717" strokeOpacity="0.12" strokeWidth="1">
+                  <g stroke="#f7f1e7" strokeOpacity="0.16" strokeWidth="1">
                     <path d="M78 70H680" />
                     <path d="M78 145H680" />
                     <path d="M78 220H680" />
@@ -228,7 +305,7 @@ export default function NutritionFacts() {
                   <path
                     d="M78 48V295H690"
                     fill="none"
-                    stroke="#171717"
+                    stroke="#f7f1e7"
                     strokeOpacity="0.5"
                     strokeWidth="1.5"
                   />
@@ -237,7 +314,7 @@ export default function NutritionFacts() {
                     className="analysis-line"
                     d="M105 254 C180 250 210 221 265 210 S355 174 410 166 S515 117 585 91 S638 77 668 70"
                     fill="none"
-                    stroke="#8e8e89"
+                    stroke="#d8d4ca"
                     strokeWidth="3"
                   />
                   <path
@@ -263,8 +340,8 @@ export default function NutritionFacts() {
                         cx={cx}
                         cy={cy}
                         r="10"
-                        fill={index === 3 ? "#f6cf3f" : "#f1f0eb"}
-                        stroke={index === 3 ? "#9d6908" : "#262626"}
+                        fill={index === 3 ? "#f6cf3f" : "#171410"}
+                        stroke={index === 3 ? "#9d6908" : "#f7f1e7"}
                         strokeWidth="3"
                       />
                     </g>
@@ -293,7 +370,7 @@ export default function NutritionFacts() {
                       x={[105, 265, 410, 668][index]}
                       y="326"
                       textAnchor="middle"
-                      fill="#171717"
+                      fill="#f7f1e7"
                       fillOpacity="0.62"
                       fontSize="13"
                       fontWeight="700"
@@ -304,7 +381,7 @@ export default function NutritionFacts() {
                   <text
                     x="18"
                     y="185"
-                    fill="#171717"
+                    fill="#f7f1e7"
                     fillOpacity="0.5"
                     fontSize="12"
                     fontWeight="700"
@@ -320,7 +397,7 @@ export default function NutritionFacts() {
           </div>
 
           <Reveal y={34} delay={0.12}>
-            <div className="rounded-[1.75rem] border border-gold/30 bg-[#111210] p-7 text-[#f3ede1] shadow-[0_28px_90px_rgba(22,22,20,0.14)] sm:p-9">
+            <div className="rounded-[1.75rem] border border-gold/35 bg-black/50 p-7 text-[#f3ede1] shadow-[0_28px_90px_rgba(0,0,0,0.2)] backdrop-blur-md sm:p-9">
               <div className="flex items-center justify-between border-b border-gold/30 pb-5">
                 <div>
                   <p className="text-[0.65rem] font-black uppercase tracking-[0.28em] text-gold">

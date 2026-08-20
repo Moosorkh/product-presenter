@@ -8,8 +8,7 @@ import NutritionFacts from "@/components/NutritionFacts";
 import BrandSection from "@/components/BrandSection";
 import RelatedProducts from "@/components/RelatedProducts";
 import PrerollsShowcase from "@/components/PrerollsShowcase";
-import WellnessTeaser from "@/components/WellnessTeaser";
-import FAQ from "@/components/FAQ";
+import FAQCTAStory from "@/components/FAQCTAStory";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -26,8 +25,7 @@ export default function Home() {
         <BrandSection />
         <RelatedProducts />
         <PrerollsShowcase />
-        <FAQ />
-        <WellnessTeaser />
+        <FAQCTAStory />
       </main>
       <Footer />
     </>
