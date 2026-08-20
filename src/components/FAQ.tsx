@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import Reveal from "./Reveal";
 import { faqs } from "@/data/products";
 
 export default function FAQ() {
@@ -11,36 +10,27 @@ export default function FAQ() {
   return (
     <section
       id="faq"
-      className="relative overflow-hidden bg-[#efefec] py-24 text-[#111820] sm:py-28"
+      className="relative flex min-h-[max(680px,calc(100svh-64px))] items-center py-24 text-[#f7f1e7] sm:py-28"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.045] mix-blend-multiply"
-        style={{
-          backgroundImage: "url(/concrete-black-1024x773.jpg)",
-          backgroundSize: "720px auto",
-          backgroundPosition: "center",
-        }}
-      />
       <div className="relative mx-auto max-w-6xl px-6">
-        <Reveal>
-          <p className="text-center text-xs font-black uppercase tracking-[0.32em] text-[#9b6f16]">
+        <div>
+          <p className="text-center text-xs font-black uppercase tracking-[0.32em] text-[#efbd59]">
             FAQ
           </p>
           <h2 className="mx-auto mt-4 max-w-md text-center text-4xl font-black leading-[0.95] tracking-[-0.045em] sm:text-6xl">
             Related questions
           </h2>
-        </Reveal>
+        </div>
 
         <div className="mt-14 grid items-start gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:gap-16">
           <div className="space-y-3">
             {faqs.map((item, i) => {
               const isOpen = openIndex === i;
               return (
-                <Reveal key={item.q} delay={i * 0.045} y={14}>
+                <div key={item.q}>
                   <div
-                    className={`overflow-hidden rounded-2xl border bg-white shadow-[0_12px_35px_rgba(16,24,32,0.06)] transition-colors ${
-                      isOpen ? "border-gold/70" : "border-black/[0.04]"
+                    className={`overflow-hidden rounded-2xl border bg-black/45 shadow-[0_12px_35px_rgba(0,0,0,0.18)] backdrop-blur-md transition-colors ${
+                      isOpen ? "border-gold/70" : "border-white/15"
                     }`}
                   >
                   <button
@@ -69,20 +59,20 @@ export default function FAQ() {
                           }}
                           className="overflow-hidden lg:hidden"
                         >
-                          <p className="px-6 pb-6 text-sm leading-relaxed text-[#111820]/65 sm:px-7">
+                          <p className="px-6 pb-6 text-sm leading-relaxed text-white/65 sm:px-7">
                             {item.a}
                           </p>
                         </motion.div>
                       )}
                     </AnimatePresence>
                   </div>
-                </Reveal>
+                </div>
               );
             })}
           </div>
 
-          <Reveal delay={0.12} y={18} className="hidden lg:block">
-            <div className="sticky top-32 min-h-[300px] rounded-[2rem] border border-white bg-white/55 p-10 shadow-[0_24px_70px_rgba(16,24,32,0.06)] backdrop-blur-sm">
+          <div className="hidden lg:block">
+            <div className="sticky top-32 min-h-[300px] rounded-[2rem] border border-white/20 bg-black/45 p-10 shadow-[0_24px_70px_rgba(0,0,0,0.2)] backdrop-blur-md">
               <AnimatePresence mode="wait" initial={false}>
                 {openIndex !== null ? (
                   <motion.div
@@ -92,13 +82,13 @@ export default function FAQ() {
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                   >
-                    <p className="text-xs font-black uppercase tracking-[0.28em] text-[#9b6f16]">
+                    <p className="text-xs font-black uppercase tracking-[0.28em] text-[#efbd59]">
                       Answer {String(openIndex + 1).padStart(2, "0")}
                     </p>
                     <h3 className="mt-5 text-2xl font-black leading-tight tracking-[-0.025em]">
                       {faqs[openIndex].q}
                     </h3>
-                    <p className="mt-6 max-w-xl text-lg leading-relaxed text-[#111820]/68">
+                    <p className="mt-6 max-w-xl text-lg leading-relaxed text-white/68">
                       {faqs[openIndex].a}
                     </p>
                   </motion.div>
@@ -107,14 +97,14 @@ export default function FAQ() {
                     key="empty"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-lg text-[#111820]/55"
+                    className="text-lg text-white/55"
                   >
                     Select a question to see its answer.
                   </motion.p>
                 )}
               </AnimatePresence>
             </div>
-          </Reveal>
+          </div>
         </div>
       </div>
     </section>

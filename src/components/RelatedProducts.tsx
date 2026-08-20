@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, type CSSProperties } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
@@ -67,8 +67,9 @@ function readableText(hex: string) {
 export default function RelatedProducts() {
   const [activeIndex, setActiveIndex] = useState(4);
   const [direction, setDirection] = useState(1);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
+  const suppressClickRef = useRef(false);
   const activeFlavor = flavors[activeIndex];
   const foreground = readableText(activeFlavor.penColor);
 
@@ -104,34 +105,30 @@ export default function RelatedProducts() {
     setActiveIndex(index);
   };
 
-  const handleTouchStart = (event: React.TouchEvent) => {
-    const touch = event.touches[0];
-    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
-  };
+  const handleDragEnd = (
+    _event: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ) => {
+    setIsDragging(false);
+    requestAnimationFrame(() => {
+      suppressClickRef.current = false;
+    });
 
-  const handleTouchEnd = (event: React.TouchEvent) => {
-    const start = touchStartRef.current;
-    touchStartRef.current = null;
-    if (!start) return;
+    // A quick flick should carry the same intent as a longer pull. The
+    // constrained track springs back to its origin while the pen positions
+    // animate into their new slots, keeping the interaction tactile without
+    // allowing the absolute-positioned lineup to drift out of frame.
+    const projectedOffset = info.offset.x + info.velocity.x * 0.12;
+    if (Math.abs(projectedOffset) < 70) return;
 
-    const touch = event.changedTouches[0];
-    const deltaX = touch.clientX - start.x;
-    const deltaY = touch.clientY - start.y;
-    if (Math.abs(deltaX) < 45 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) {
-      return;
-    }
-
-    move(deltaX < 0 ? 1 : -1);
+    move(projectedOffset < 0 ? 1 : -1);
   };
 
   return (
     <motion.section
       id="edibles"
       ref={sectionRef}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      className="relative isolate overflow-hidden border-t-[14px] border-[#080808]"
-      style={{ touchAction: "pan-y" }}
+      className="relative isolate overflow-hidden"
       animate={{ backgroundColor: activeFlavor.penColor, color: foreground }}
       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
     >
@@ -249,7 +246,24 @@ export default function RelatedProducts() {
           />
           <div className="absolute left-1/2 top-[42%] z-[2] h-[460px] w-[310px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/50 blur-3xl lg:left-[11%] lg:top-1/2" />
 
-          <div className="absolute inset-x-0 top-0 z-10 h-full lg:left-0 lg:right-auto lg:w-full">
+          <motion.div
+            role="group"
+            aria-label="Flavor lineup. Drag or swipe horizontally to browse."
+            className={`absolute inset-x-0 top-0 z-10 h-full select-none lg:left-0 lg:right-auto lg:w-full ${
+              isDragging ? "cursor-grabbing" : "cursor-grab"
+            }`}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.28}
+            dragMomentum={false}
+            dragTransition={{ bounceStiffness: 420, bounceDamping: 34 }}
+            onDragStart={() => {
+              suppressClickRef.current = true;
+              setIsDragging(true);
+            }}
+            onDragEnd={handleDragEnd}
+            style={{ touchAction: "pan-y" }}
+          >
             {flavors.map((flavor, index) => {
               const slot = (index - activeIndex + flavors.length) % flavors.length;
               const position = productPositions[slot];
@@ -262,8 +276,11 @@ export default function RelatedProducts() {
                   aria-label={`Select ${flavor.name}`}
                   aria-pressed={index === activeIndex}
                   tabIndex={isVisible ? 0 : -1}
-                  onClick={() => selectFlavor(index, slot)}
-                  className="absolute left-1/2 top-[15%] origin-bottom cursor-pointer border-0 bg-transparent p-0 text-left outline-none will-change-transform focus-visible:drop-shadow-[0_0_14px_rgba(203,160,90,0.9)] sm:top-[13%] lg:left-[8%] lg:top-[15%]"
+                  onClick={() => {
+                    if (suppressClickRef.current) return;
+                    selectFlavor(index, slot);
+                  }}
+                  className="absolute left-1/2 top-[15%] origin-bottom cursor-inherit border-0 bg-transparent p-0 text-left outline-none will-change-transform focus-visible:drop-shadow-[0_0_14px_rgba(203,160,90,0.9)] sm:top-[13%] lg:left-[8%] lg:top-[15%]"
                   animate={
                     isVisible
                       ? position
@@ -294,7 +311,7 @@ export default function RelatedProducts() {
                 </motion.button>
               );
             })}
-          </div>
+          </motion.div>
 
           <div
             aria-hidden

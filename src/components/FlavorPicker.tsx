@@ -101,6 +101,7 @@ function StageItem({
 export default function FlavorPicker() {
   const [selected, setSelected] = useState(flavors[mobileInitialIndex]);
   const sectionRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const stRef = useRef<ScrollTrigger | null>(null);
@@ -132,6 +133,27 @@ export default function FlavorPicker() {
       const mm = gsap.matchMedia();
 
       mm.add("(min-width: 768px) and (min-height: 560px)", () => {
+        gsap.fromTo(
+          contentRef.current,
+          {
+            y: "16vh",
+            scale: 0.965,
+            opacity: 0.58,
+          },
+          {
+            y: 0,
+            scale: 1,
+            opacity: 1,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: sectionRef.current,
+              start: "top 96%",
+              end: "top 64px",
+              scrub: 0.75,
+            },
+          }
+        );
+
         const syncSelectedFlavor = (progress: number) => {
           const idx = Math.min(
             flavors.length - 1,
@@ -151,6 +173,7 @@ export default function FlavorPicker() {
           pin: true,
           scrub: 0.6,
           snap: 1 / (flavors.length - 1),
+          anticipatePin: 1,
           onUpdate: (self) => {
             syncSelectedFlavor(self.progress);
           },
@@ -246,9 +269,12 @@ export default function FlavorPicker() {
     <section
       id="vapes"
       ref={sectionRef}
-      className="flavor-picker relative overflow-hidden bg-ink pb-7 pt-8 text-[#f3ede1] md:h-[calc(100svh-64px)] md:min-h-[636px] md:py-11"
+      className="flavor-picker relative z-10 overflow-hidden bg-ink pb-7 pt-8 text-[#f3ede1] md:-mt-[calc(100svh-64px)] md:h-[calc(100svh-64px)] md:min-h-[636px] md:rounded-t-[2rem] md:py-11 md:shadow-[0_-28px_90px_rgba(0,0,0,0.48)]"
     >
-      <div className="relative mx-auto flex max-w-[1480px] flex-col px-6 md:h-full">
+      <div
+        ref={contentRef}
+        className="relative mx-auto flex max-w-[1480px] flex-col px-6 will-change-transform md:h-full"
+      >
         <Reveal className="flavor-picker__intro mx-auto max-w-3xl text-center">
           <p className="flavor-picker__eyebrow text-base font-bold uppercase tracking-[0.3em] text-gold">
             Signature Line
